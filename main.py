@@ -43,11 +43,15 @@ class CustomExecutionContext(ExecutionContext):
             errors.append(error)
             raise ValidationAbortedError
 
-        context = ValidationContext(schema=schema, ast=document, type_info=TypeInfo(schema), on_error=on_error)
-        try:
-            visit(document, DepthAnalysisVisitor(context=context, max_depth=1))
-        except ValidationAbortedError:
-            pass
+        enable_depth_analysis = context_value.get("depth_analysis")
+        if enable_depth_analysis:
+            max_depth = enable_depth_analysis.get("max_depth", 10)
+            context = ValidationContext(schema=schema, ast=document, type_info=TypeInfo(schema), on_error=on_error)
+
+            try:
+                visit(document, DepthAnalysisVisitor(context=context, max_depth=max_depth))
+            except ValidationAbortedError:
+                pass
 
         if errors:
             return errors
@@ -103,4 +107,8 @@ schema = GraphQLSchema(
 query = '{ cat { meow } foo { bar { xxx } } }'
 # query = '{ hello hey }'
 
-print(graphql_sync(schema, query, execution_context_class=CustomExecutionContext))
+print(graphql_sync(schema, query,
+                   context_value={"depth_analysis": {
+                       "max_depth": 10
+                   }},
+                   execution_context_class=CustomExecutionContext))
